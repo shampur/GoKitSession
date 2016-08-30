@@ -1,11 +1,8 @@
 package session
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -15,15 +12,10 @@ import (
 	httptransport "github.com/go-kit/kit/transport/http"
 )
 
-var (
-	// ErrBadRouting is returned when an expected path variable is missing.
-	// It always indicates programmer error.
-	ErrBadRouting = errors.New("inconsistent mapping between route and handler (programmer error)")
-)
 
 //MakeHTTPHandler go http server
 func MakeHTTPHandler(ctx context.Context, s Service, logger log.Logger) http.Handler {
-	fmt.Println("MAke http handler")
+	fmt.Println("Make http handler")
 	r := mux.NewRouter()
 	e := MakeServerEndpoints(s)
 	options := []httptransport.ServerOption{
@@ -48,6 +40,20 @@ func MakeHTTPHandler(ctx context.Context, s Service, logger log.Logger) http.Han
 		encodeLoginResponse,
 		options...,
 	))
+	r.Methods("DELETE").Path("/logoutuser/").Handler(httptransport.NewServer(
+		ctx,
+		e.logoutEndpoint,
+		decodeLogoutReq,
+		encodeLogoutResponse,
+		options...,
+	))
+	r.Methods("GET").Path("/validateapp/").Handler(httptransport.NewServer(
+		ctx,
+		e.validateappEndpoint,
+		decodeValidateReq,
+		encodeLoginResponse,
+		options...,
+	))
 	return r
 }
 
@@ -56,6 +62,18 @@ func decodeLoginReq(_ context.Context, r *http.Request) (request interface{}, er
 	if e := json.NewDecoder(r.Body).Decode(&req.cred); e != nil {
 		return nil, e
 	}
+	req.httpreq = r
+	return req, nil
+}
+
+func decodeLogoutReq(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var req LogoutRequest
+	req.httpreq = r
+	return req, nil
+}
+
+func decodeValidateReq(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var req validateAppRequest
 	req.httpreq = r
 	return req, nil
 }
@@ -85,24 +103,20 @@ func encodeLoginResponse(ctx context.Context, w http.ResponseWriter, response in
 		return nil
 	}
 
-	if response.(LoginResponse).Authenticated {
-		response.(LoginResponse).Session.Save(response.(LoginResponse).Httpreq, w)
-	}
+	response.(LoginResponse).Session.Save(response.(LoginResponse).Httpreq, w)
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	return json.NewEncoder(w).Encode(resp{Authenticated: response.(LoginResponse).Authenticated, Message: response.(LoginResponse).Message})
+	json.NewEncoder(w).Encode(resp{Authenticated: response.(LoginResponse).Authenticated, Message: response.(LoginResponse).Message})
+	return nil
 }
 
-// encodeRequest likewise JSON-encodes the request to the HTTP request body.
-// Don't use it directly as a transport/http.Client EncodeRequestFunc:
-// profilesvc endpoints require mutating the HTTP method and request path.
-func encodeRequest(_ context.Context, req *http.Request, request interface{}) error {
-	fmt.Println("Encoding Request")
-	var buf bytes.Buffer
-	err := json.NewEncoder(&buf).Encode(request)
-	if err != nil {
-		return err
+func encodeLogoutResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	fmt.Println("Logout Resposne function")
+	if e, ok := response.(errorer); ok && e.error() != nil {
+		encodeError(ctx, e.error(), w)
+		return nil
 	}
-	req.Body = ioutil.NopCloser(&buf)
+	response.(LogoutResponse).Session.Save(response.(LogoutResponse).Httpreq, w)
 	return nil
 }
 

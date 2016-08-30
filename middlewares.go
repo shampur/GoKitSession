@@ -30,9 +30,30 @@ type loggingMiddleware struct {
 
 func (mw loggingMiddleware) login(ctx context.Context, r LoginRequest) (resp LoginResponse, err error) {
 	defer func(begin time.Time) {
-		mw.logger.Log("method", "login", "Username", r.cred.Username, "took", time.Since(begin), "err", err)
+		mw.logger.Log("Host", r.httpreq.Host, "Url", r.httpreq.URL)
+		mw.logger.Log("method", "login", "took", time.Since(begin), "err", err)
 	}(time.Now())
-	fmt.Println("middleware called")
+	fmt.Println("login middleware called")
 	resp, err = mw.next.login(ctx, r)
+	return
+}
+
+func (mw loggingMiddleware) logout(ctx context.Context, r LogoutRequest) (resp LogoutResponse, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log("Host", r.httpreq.Host, "Url", r.httpreq.URL)
+		mw.logger.Log("method", "Logout", "took", time.Since(begin), "err", err)
+	}(time.Now())
+	fmt.Println("logout middleware called")
+	resp, err = mw.next.logout(ctx, r)
+	return
+}
+
+func (mw loggingMiddleware) validateapp(ctx context.Context, r validateAppRequest) (resp LoginResponse, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log("Host", r.httpreq.Host, "Url", r.httpreq.URL)
+		mw.logger.Log("method", "validateapp", "took", time.Since(begin), "err", err)
+	}(time.Now())
+	fmt.Println("validateapp middleware called")
+	resp, err = mw.next.validateapp(ctx, r)
 	return
 }

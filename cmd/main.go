@@ -10,8 +10,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/contiv/sessio-micro"
+	"../../session-micro"
 	"github.com/go-kit/kit/log"
+
 )
 
 func main() {

@@ -20,12 +20,13 @@ type fileFormat struct {
 // NewLdap function initializes the ldap module
 func NewLocalAuth() *localAuth {
 	return &localAuth{
-		localAuthFileData: 	getSuperAdminUsers("localauthfile.json"),
+		localAuthFileData: 	getSuperAdminUsers(LocalAuthFileLoc),
 	}
 }
 
 func getSuperAdminUsers(filepath string) []fileFormat {
 	fmt.Println("Inside getSuperAdmin")
+	fmt.Println("filepath to read from =", filepath)
 	file, e := ioutil.ReadFile(filepath)
     	if e != nil {
 		fmt.Println("Error in reading file")

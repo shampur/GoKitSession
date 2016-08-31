@@ -10,6 +10,8 @@ import (
 
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/sessions"
+	"os"
 )
 
 
@@ -93,8 +95,9 @@ type errorer interface {
 func encodeLoginResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	fmt.Println("Login response function")
 	type resp struct {
-		Authenticated bool   `json:"authenticated"`
-		Message       string `json:"message"`
+		Authenticated 	bool   	`json:"authenticated"`
+		Message       	string 	`json:"message"`
+		Username	string	`json:"username"`
 	}
 	if e, ok := response.(errorer); ok && e.error() != nil {
 		// Not a Go kit transport error, but a business-logic error.
@@ -104,9 +107,13 @@ func encodeLoginResponse(ctx context.Context, w http.ResponseWriter, response in
 	}
 
 	response.(LoginResponse).Session.Save(response.(LoginResponse).Httpreq, w)
+	if(!response.(LoginResponse).Authenticated){
+		delete(response.(LoginResponse).Session)
+	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(resp{Authenticated: response.(LoginResponse).Authenticated, Message: response.(LoginResponse).Message})
+	json.NewEncoder(w).Encode(resp{Authenticated: response.(LoginResponse).Authenticated,
+		Message: response.(LoginResponse).Message, Username: response.(LoginResponse).Username})
 	return nil
 }
 
@@ -117,6 +124,7 @@ func encodeLogoutResponse(ctx context.Context, w http.ResponseWriter, response i
 		return nil
 	}
 	response.(LogoutResponse).Session.Save(response.(LogoutResponse).Httpreq, w)
+	delete(response.(LogoutResponse).Session)
 	return nil
 }
 
@@ -129,6 +137,21 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": err.Error(),
 	})
+}
+
+func delete(session *sessions.Session) {
+	var filePath string
+	filePath = SessionDirectory + "/" + "session_" + session.ID
+	fmt.Println("filePath = ", filePath)
+	// detect if file exists
+
+	// delete file if it exists
+	if _, err := os.Stat(filePath); err == nil {
+		var err = os.Remove(filePath)
+		if err != nil {
+			return
+		}
+	}
 }
 
 func codeFrom(err error) int {

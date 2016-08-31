@@ -1,7 +1,6 @@
 package session
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -44,6 +43,7 @@ type LogoutResponse struct {
 type LoginResponse struct {
 	Authenticated bool              `json:"authenticated"`
 	Message       string            `json:"message"`
+	Username      string		`json:"username"`
 	Session       *sessions.Session `json:"session"`
 	Httpreq       *http.Request     `json:"httpreq"`
 }
@@ -57,26 +57,17 @@ type Credentials struct {
 
 type sessionService struct {
 	mtx         sync.RWMutex
-	store       *sessions.CookieStore
+	store       *sessions.FilesystemStore
 	authManager *AuthManager
 }
 
 //NewSessionService contains the session store
 func NewSessionService() Service {
 	return &sessionService{
-		store:       sessions.NewCookieStore([]byte("something-very-secret")),
+		store:       sessions.NewFilesystemStore("./sessionstore",[]byte("something-very-secret")),
 		authManager: NewAuthmanager(),
 	}
 }
-
-var (
-	// ErrInconsistentIDs server error message
-	ErrInconsistentIDs = errors.New("inconsistent IDs")
-	// ErrAlreadyExists server error message
-	ErrAlreadyExists = errors.New("already exists")
-	// ErrNotFound server error message
-	ErrNotFound = errors.New("not found")
-)
 
 func (s *sessionService) login(ctx context.Context, r LoginRequest) (LoginResponse, error) {
 	fmt.Println("Login service called")
@@ -104,6 +95,7 @@ func (s *sessionService) login(ctx context.Context, r LoginRequest) (LoginRespon
 	if res.Authenticated {
 		session.Values["Username"] = r.cred.Username
 		session.Values["LastLoginTime"] = time.Now().Format(time.RFC3339)
+		res.Username = r.cred.Username
 	} else {
 		session.Options.MaxAge = -1
 	}
@@ -125,7 +117,6 @@ func (s *sessionService) logout(ctx context.Context, r LogoutRequest) (LogoutRes
 	}
 
 	session.Options.MaxAge = -1
-
 	res.Session = session
 	res.Httpreq =r.httpreq
 
@@ -150,6 +141,9 @@ func (s *sessionService) validateapp(ctx context.Context, r validateAppRequest) 
 	} else {
 		fmt.Println("session is present")
 		res, err = validate(session)
+		if res.Authenticated {
+			res.Username = session.Values["Username"].(string)
+		}
 	}
 
 	res.Session = session
@@ -177,7 +171,7 @@ func validate(session *sessions.Session) (LoginResponse, error) {
 	fmt.Println("Past time = ", parsedTime)
 	fmt.Println("Duration eloped = ", duration.Minutes())
 	minutesPassed := duration.Minutes()
-	if minutesPassed < 0 || minutesPassed > 0.80 {
+	if minutesPassed < 0 || minutesPassed > 0.20 {
 		fmt.Println("Session Invalid")
 		session.Options.MaxAge = -1
 		return LoginResponse{Authenticated: false, Message: "Invalid Session"}, nil

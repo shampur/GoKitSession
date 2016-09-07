@@ -57,3 +57,12 @@ func (mw loggingMiddleware) validateapp(ctx context.Context, r validateAppReques
 	resp, err = mw.next.validateapp(ctx, r)
 	return
 }
+
+func (mw loggingMiddleware) apiprocess(ctx context.Context, r apiRequest) (resp interface{}, err error) {
+	defer func(begin time.Time) {
+
+	}(time.Now())
+	fmt.Println("api process middleware called")
+	resp, err = mw.next.apiprocess(ctx, r)
+	return
+}

@@ -15,4 +15,5 @@ var (
 	//Session file location
 	SessionDirectory = "sessionstore"
 	LocalAuthFileLoc = "localauthfile.json"
+	apiconfigfile = "apiconfig.json"
 )

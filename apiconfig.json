@@ -1,0 +1,62 @@
+[
+  {
+    "api": "/api/v1/networks/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  },
+  {
+    "api": "/api/v1/inspect/networks/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  },
+  {
+    "api": "/api/v1/inspect/serviceLBs/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  },
+  {
+    "api": "/api/v1/rules/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  },
+  {
+    "api": "/api/v1/policys/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  },
+  {
+    "api": "/api/v1/endpointGroups/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  },
+  {
+    "api": "/api/v1/serviceLBs/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  },
+  {
+    "api": "/api/v1/tenants/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  },
+  {
+    "api": "/api/v1/globals/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  },
+  {
+    "api": "/api/v1/netprofiles/",
+    "methods": ["GET"],
+    "destination": "http://localhost:9999",
+    "authorization": false
+  }
+]

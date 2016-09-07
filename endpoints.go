@@ -11,6 +11,7 @@ type Endpoints struct {
 	loginEndpoint endpoint.Endpoint
 	logoutEndpoint endpoint.Endpoint
 	validateappEndpoint endpoint.Endpoint
+	apiEndpoint endpoint.Endpoint
 }
 
 // MakeServerEndpoints function prepares the server Endpoints
@@ -19,6 +20,7 @@ func MakeServerEndpoints(s Service) Endpoints {
 		loginEndpoint: MakeLoginEnpoint(s),
 		logoutEndpoint: MakeLogoutEndpoint(s),
 		validateappEndpoint: MakeValidateappEndpoint(s),
+		apiEndpoint: MakeApiEndpoint(s),
 	}
 }
 
@@ -43,6 +45,14 @@ func MakeValidateappEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(validateAppRequest)
 		result, err := s.validateapp(ctx, req)
+		return result, err
+	}
+}
+
+func MakeApiEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(apiRequest)
+		result, err := s.apiprocess(ctx, req)
 		return result, err
 	}
 }

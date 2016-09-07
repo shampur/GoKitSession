@@ -56,6 +56,13 @@ func MakeHTTPHandler(ctx context.Context, s Service, logger log.Logger) http.Han
 		encodeLoginResponse,
 		options...,
 	))
+	r.Methods("GET").PathPrefix("/").Handler(httptransport.NewServer(
+		ctx,
+		e.apiEndpoint,
+		decodeApiRequest,
+		encodeApiResponse,
+		options...,
+	))
 	return r
 }
 
@@ -77,6 +84,19 @@ func decodeLogoutReq(_ context.Context, r *http.Request) (request interface{}, e
 func decodeValidateReq(_ context.Context, r *http.Request) (request interface{}, err error) {
 	var req validateAppRequest
 	req.httpreq = r
+	return req, nil
+}
+
+func decodeApiRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var req apiRequest
+	req.httpreq = r
+
+	if (r.Method == "POST" || r.Method == "PUT") {
+		if e:= json.NewDecoder(r.Body).Decode(&req.data); e != nil {
+				return nil, e
+			}
+	}
+
 	return req, nil
 }
 
@@ -125,6 +145,23 @@ func encodeLogoutResponse(ctx context.Context, w http.ResponseWriter, response i
 	}
 	response.(LogoutResponse).Session.Save(response.(LogoutResponse).Httpreq, w)
 	delete(response.(LogoutResponse).Session)
+	return nil
+}
+
+func encodeApiResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	fmt.Println("api encode resopnse called")
+	var jdata interface{}
+	if e, ok := response.(errorer); ok && e.error() != nil {
+		encodeError(ctx, e.error(), w)
+		return nil
+	}
+	err := json.Unmarshal(response.([]byte), &jdata)
+	if err != nil {
+		fmt.Println("error in encoding response")
+		encodeError(ctx, err, w)
+		return nil
+	}
+	json.NewEncoder(w).Encode(jdata)
 	return nil
 }
 

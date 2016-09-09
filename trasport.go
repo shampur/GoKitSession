@@ -12,6 +12,7 @@ import (
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/sessions"
 	"os"
+	"io"
 )
 
 
@@ -56,7 +57,7 @@ func MakeHTTPHandler(ctx context.Context, s Service, logger log.Logger) http.Han
 		encodeLoginResponse,
 		options...,
 	))
-	r.Methods("GET").PathPrefix("/").Handler(httptransport.NewServer(
+	r.PathPrefix("/").Handler(httptransport.NewServer(
 		ctx,
 		e.apiEndpoint,
 		decodeApiRequest,
@@ -92,9 +93,14 @@ func decodeApiRequest(_ context.Context, r *http.Request) (request interface{}, 
 	req.httpreq = r
 
 	if (r.Method == "POST" || r.Method == "PUT") {
+		fmt.Println("r.body = ", r.Body)
+
 		if e:= json.NewDecoder(r.Body).Decode(&req.data); e != nil {
+			if(e != io.EOF) {
 				return nil, e
 			}
+
+		}
 	}
 
 	return req, nil
@@ -150,18 +156,21 @@ func encodeLogoutResponse(ctx context.Context, w http.ResponseWriter, response i
 
 func encodeApiResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	fmt.Println("api encode resopnse called")
+	fmt.Println("response = ", response)
 	var jdata interface{}
 	if e, ok := response.(errorer); ok && e.error() != nil {
 		encodeError(ctx, e.error(), w)
 		return nil
 	}
-	err := json.Unmarshal(response.([]byte), &jdata)
-	if err != nil {
-		fmt.Println("error in encoding response")
-		encodeError(ctx, err, w)
-		return nil
+	if((response != nil) && (len(response.([]byte)) > 0)){
+		err := json.Unmarshal(response.([]byte), &jdata)
+		if err != nil {
+			fmt.Println("error in encoding response")
+			encodeError(ctx, err, w)
+			return nil
+		}
+		json.NewEncoder(w).Encode(jdata)
 	}
-	json.NewEncoder(w).Encode(jdata)
 	return nil
 }
 
@@ -169,11 +178,14 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	if err == nil {
 		panic("encodeError with nil error")
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	//w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(codeFrom(err))
+	io.WriteString(w, err.Error())
+	/*
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": err.Error(),
 	})
+	*/
 }
 
 func delete(session *sessions.Session) {

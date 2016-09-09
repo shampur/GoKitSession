@@ -12,6 +12,8 @@ import (
 	"golang.org/x/net/context"
 
 	"io/ioutil"
+	"encoding/json"
+	"bytes"
 )
 
 //Service Interface of session manager
@@ -171,18 +173,19 @@ func (s *sessionService) apiprocess(ctx context.Context, r apiRequest) (interfac
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	var result interface{}
-	//var sesssionresp LoginResponse
+	var sesssionresp LoginResponse
 	session, err := s.store.Get(r.httpreq, "contiv-session")
 	if err != nil {
 		fmt.Println("error while retrieving session")
 		return result, err
 	}
-
+	/*
 	if session.IsNew {
 		fmt.Println("api process session is valid")
 		result, err = apiexecute(s.apiconfig, r)
 	}
-	/*
+	*/
+
 	if session.IsNew {
 		fmt.Println("api-get session is new")
 		return result, nil
@@ -194,7 +197,6 @@ func (s *sessionService) apiprocess(ctx context.Context, r apiRequest) (interfac
 		}
 
 	}
-	*/
 	return result, err
 }
 
@@ -208,19 +210,19 @@ func apiexecute(apiconfig *apiConfig, r apiRequest) (interface{}, error) {
 	if ok {
 		switch r.httpreq.Method {
 
-		case "GET": 	fmt.Println("The remote call =", config.Destination + r.httpreq.URL.Path)
+		case "GET": 	fmt.Println("The remote get call =", config.Destination + r.httpreq.URL.Path)
 				result, err = httpGet(config.Destination + r.httpreq.URL.Path)
-				/*
-				dump, err := httputil.DumpResponse(result, true)
-				if err != nil {
-					fmt.Println("error in dumping response")
-				}
-				fmt.Println(dump)
-				*/
 				return result, err
-		case "POST":
-		case "PUT":
-		case "DELETE":
+		case "POST":	fmt.Println("The remote post call=", config.Destination + r.httpreq.URL.Path)
+				fmt.Println("r.data before post call=", r.data)
+				result, err = httpPost(config.Destination + r.httpreq.URL.Path, r.data)
+				return result, err
+		case "PUT":	fmt.Println("The remote Put call=", config.Destination + r.httpreq.URL.Path)
+				result, err = httpPut(config.Destination + r.httpreq.URL.Path, r.data)
+				return result, err
+		case "DELETE":	fmt.Println("The remote delete call =", config.Destination + r.httpreq.URL.Path)
+				err = httpDelete(config.Destination + r.httpreq.URL.Path)
+				return result, err
 
 		}
 	}
@@ -281,6 +283,118 @@ func httpGet(url string) (interface{}, error){
 	//return r, nil
 }
 
+func httpPut(url string, jdata interface{}) (interface{}, error) {
+	buf, err := json.Marshal(jdata)
+	if err != nil {
+		return nil, err
+	}
+	body := bytes.NewBuffer(buf)
+	req, err := http.NewRequest("PUT", url, body)
+
+	r, err := http.DefaultClient.Do(req)
+
+	defer r.Body.Close()
+
+	switch {
+	case r.StatusCode == int(404):
+		return nil, errors.New("Page not found!")
+	case r.StatusCode == int(403):
+		return nil, errors.New("Access denied!")
+	case r.StatusCode == int(500):
+		response, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			fmt.Println("the error is =", err.Error())
+			return nil, err
+		}
+		fmt.Println("the error is =", string(response))
+		return nil, errors.New(string(response))
+
+	case r.StatusCode != int(200):
+		return nil, errors.New(r.Status)
+	}
+
+	response, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+
+func httpPost(url string, jdata interface{}) (interface{}, error) {
+	fmt.Println("jdata=", jdata)
+	buf, err := json.Marshal(jdata)
+	if err != nil {
+		return nil, err
+	}
+
+	body := bytes.NewBuffer(buf)
+	fmt.Println("body=", body)
+	r, err := http.Post(url, "application/json", body)
+	if err != nil {
+		fmt.Println("the error is =", err.Error())
+		return nil, err
+	}
+	defer r.Body.Close()
+
+	switch {
+	case r.StatusCode == int(404):
+		return nil, errors.New("Page not found!")
+	case r.StatusCode == int(403):
+		return nil, errors.New("Access denied!")
+	case r.StatusCode == int(500):
+		response, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			fmt.Println("the error is =", err.Error())
+			return nil, err
+		}
+		fmt.Println("the error is =", string(response))
+		return nil, errors.New(string(response))
+
+	case r.StatusCode != int(200):
+		return nil, errors.New(r.Status)
+	}
+
+
+	response, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func httpDelete(url string) error {
+
+	req, err := http.NewRequest("DELETE", url, nil)
+
+	r, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer r.Body.Close()
+
+	switch {
+	case r.StatusCode == int(404):
+		return errors.New("Page not found!")
+	case r.StatusCode == int(403):
+		return errors.New("Access denied!")
+	case r.StatusCode == int(500):
+		response, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return err
+		}
+
+		return errors.New(string(response))
+
+	case r.StatusCode != int(200):
+		return errors.New(r.Status)
+	}
+
+	return nil
+}
+
 
 func validate(session *sessions.Session) (LoginResponse, error) {
 	fmt.Println("validate session called")
@@ -301,7 +415,7 @@ func validate(session *sessions.Session) (LoginResponse, error) {
 	fmt.Println("Past time = ", parsedTime)
 	fmt.Println("Duration eloped = ", duration.Minutes())
 	minutesPassed := duration.Minutes()
-	if minutesPassed < 0 || minutesPassed > 0.20 {
+	if minutesPassed < 0 || minutesPassed > 0.40 {
 		fmt.Println("Session Invalid")
 		session.Options.MaxAge = -1
 		return LoginResponse{Authenticated: false, Message: "Invalid Session"}, nil
